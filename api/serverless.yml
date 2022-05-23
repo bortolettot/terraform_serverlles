@@ -4,10 +4,13 @@ frameworkVersion: '3'
 provider:
   name: aws
   runtime: nodejs12.x
-
   stage: dev
   region: us-east-1
-
+  httpApi:
+    authorizers:
+      customAuthorizer:
+        type: request
+        functionName: authorizerFunc
   
 functions:
   register:
@@ -15,7 +18,6 @@ functions:
     handler: register/handler.register
     environment:
       DYNAMODB_USERS: ${ssm:${self:custom.stage}-dynamodb-users-table}
-      
     events:
       - httpApi:
           path: /${self:custom.stage}/users
@@ -32,6 +34,25 @@ functions:
       - httpApi:
           path: /${self:custom.stage}/login
           method: post
+
+  create_booking:
+    role: ${ssm:${self:custom.stage}-create-booking-iam-role}
+    handler: create-booking/handler.create
+    environment:
+      DYNAMODB_BOOKINGS: ${ssm:${self:custom.stage}-dynamodb-bookings-table}
+    events:
+      - httpApi:
+          path: /${self:custom.stage}/bookings
+          method: post
+          authorizer: 
+            name: customAuthorizer
+  
+  authorizerFunc:
+    handler: authorizer/handler.authorizer
+    environment:
+      JWT_SECRET: ${ssm:${self:custom.stage}-jwt-secret}
+        
+    
 
 custom:
   stage: ${opt:stage, self:provider.stage}
